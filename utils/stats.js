@@ -73,7 +73,7 @@ function calculateMonthlyWinRates(monthlyWinRates) {
 
 // ✅ Assign badges based on performance
 function calculateBadges(matches, wins, totPlayed, monthlyWinRates) { // ✅ Now accepting monthlyWinRates
-    let badges = [];
+    let badges = {};
     let totalLosses = {};
     let winStreaks = {};
     let currentStreaks = {};
@@ -124,7 +124,7 @@ function monthlyChampions(monthlyWinRates) {
 
 // ✅ Assign badge to a player
 function assignBadge(badges, player, badge) {
-    if (player && badges) {
+    if (player && badges.lenght) {
         badges[player].push(badge);
     }
 }
