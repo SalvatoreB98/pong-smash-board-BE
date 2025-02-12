@@ -1,15 +1,17 @@
-import supabase from "../services/db";
-import Cors from "cors";
+const supabase = require('../services/db');
+const cors = require("cors");
 
 // Initialize CORS middleware
-const cors = Cors({
+const corsMiddleware = cors({
   methods: ["GET", "POST", "OPTIONS"],
 });
 
 // Vercel API handler
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   await new Promise((resolve, reject) => {
-    cors(req, res, (result) => (result instanceof Error ? reject(result) : resolve(result)));
+    corsMiddleware(req, res, (result) =>
+      result instanceof Error ? reject(result) : resolve(result)
+    );
   });
 
   if (req.method === "GET") {
@@ -19,4 +21,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ error: "Method not allowed" });
-}
+};
