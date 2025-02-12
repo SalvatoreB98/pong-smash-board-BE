@@ -18,22 +18,26 @@ module.exports = async (req, res) => {
         if (matchesError || !matches) {
             throw new Error(matchesError?.message || 'No match data found.');
         }
-        console.log('Matches:', matches);
         // ✅ Ensure `match_sets` is always an array
-        const formattedMatches = matches.map(match => ({
-            ...match,
-            match_sets: Array.isArray(match.match_sets) ? match.match_sets : [] // ✅ Convert to array if null
-        }));
-
+        
         // Fetch players
         const { data: players, error: playersError } = await supabase
-            .from('players')
-            .select('*');
-
+        .from('players')
+        .select('*');
+        
         if (playersError || !players) {
             throw new Error(playersError?.message || 'No player data found.');
         }
-
+        const playerMap = Object.fromEntries(players.map(player => [player.playerid, player.name]));
+        console.log('playerMap:', playerMap);
+        
+        const formattedMatches = matches.map(match => ({
+            player1_name: playerMap[match.player1_id] || 'Unknown Player',
+            player2_name: playerMap[match.player2_id] || 'Unknown Player',
+            ...match,
+            match_sets: Array.isArray(match.match_sets) ? match.match_sets : [] // ✅ Convert to array if null
+        }));
+        
         // Process match data
         const { wins, totPlayed, points, monthlyWinRates, badges } = parseData(formattedMatches);
 

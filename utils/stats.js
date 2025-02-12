@@ -1,5 +1,4 @@
 export function parseData(matches) {
-    console.log("🚀 Debugging parseData - Received Matches:", JSON.stringify(matches, null, 2));
 
     if (!Array.isArray(matches)) {
         throw new Error("parseData expects an array, but received something else.");

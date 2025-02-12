@@ -1,4 +1,4 @@
-import supabase from "../services/db";
+const supabase = require('../services/db');
 
 // GET all users
 router.get("/", async (req, res) => {
