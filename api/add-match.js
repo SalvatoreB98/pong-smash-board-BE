@@ -11,7 +11,7 @@ module.exports = (req, res) => {
             return res.status(405).json({ error: 'Method Not Allowed' });
         }
 
-        const { matchId, date, player1, player2, p1Score, p2Score, setsPoints } = req.body;
+        const { date, player1, player2, p1Score, p2Score, setsPoints } = req.body;
 
         if (!date || !player1 || !player2 || p1Score === undefined || p2Score === undefined) {
             return res.status(400).json({ error: 'Invalid data. Ensure all fields are provided.' });
