@@ -34,8 +34,6 @@ module.exports = async (req, res) => {
             { name: player.name, image: player.image_url }
         ]));
 
-        console.log('playerMap:', playerMap);
-
         // ✅ Format matches
         const formattedMatches = matches.map(match => ({
             player1_name: playerMap[match.player1_id]?.name || 'Unknown Player',
