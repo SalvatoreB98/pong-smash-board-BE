@@ -16,7 +16,7 @@ function calculateStats(matches) {
     let badges = {};
 
     // Initialize structures
-    matches.forEach(({ player1_id, player2_id, score_p1, score_p2, created }) => {
+    matches.forEach(({ player1_id, player2_id, player1_score, player2_score, created }) => {
         const month = created.split('-')[1]; // Extract month from timestamp
 
         [player1_id, player2_id].forEach(player => {
@@ -27,19 +27,19 @@ function calculateStats(matches) {
         });
 
         // Update stats
-        totPlayed[player1_id] += score_p1 + score_p2;
-        totPlayed[player2_id] += score_p1 + score_p2;
-        wins[player1_id] += score_p1;
-        wins[player2_id] += score_p2;
+        totPlayed[player1_id] += player1_score + player2_score;
+        totPlayed[player2_id] += player1_score + player2_score;
+        wins[player1_id] += player1_score;
+        wins[player2_id] += player2_score;
 
         // Monthly tracking
         if (!monthlyWinRates[player1_id][month]) monthlyWinRates[player1_id][month] = { wins: 0, totPlayed: 0 };
         if (!monthlyWinRates[player2_id][month]) monthlyWinRates[player2_id][month] = { wins: 0, totPlayed: 0 };
 
-        monthlyWinRates[player1_id][month].wins += score_p1;
-        monthlyWinRates[player1_id][month].totPlayed += score_p1 + score_p2;
-        monthlyWinRates[player2_id][month].wins += score_p2;
-        monthlyWinRates[player2_id][month].totPlayed += score_p1 + score_p2;
+        monthlyWinRates[player1_id][month].wins += player1_score;
+        monthlyWinRates[player1_id][month].totPlayed += player1_score + player2_score;
+        monthlyWinRates[player2_id][month].wins += player2_score;
+        monthlyWinRates[player2_id][month].totPlayed += player1_score + player2_score;
     });
 
     // Calculate points & badges
@@ -84,11 +84,11 @@ function calculateBadges(matches, wins, totPlayed, monthlyWinRates) { // ✅ Now
         currentStreaks[player] = 0;
     });
 
-    matches.forEach(({ player1_id, player2_id, score_p1, score_p2 }) => {
-        if (score_p1 > score_p2) {
+    matches.forEach(({ player1_id, player2_id, player1_score, player2_score }) => {
+        if (player1_score > player2_score) {
             currentStreaks[player1_id]++;
             currentStreaks[player2_id] = 0;
-        } else if (score_p2 > score_p1) {
+        } else if (player2_score > player1_score) {
             currentStreaks[player2_id]++;
             currentStreaks[player1_id] = 0;
         }
