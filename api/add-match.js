@@ -34,6 +34,19 @@ module.exports = (req, res) => {
                 .select()
                 .single();
 
+            if (!match) {
+                throw new Error('Insert su matches fallito: match null');
+            } else {
+                await supabase.rpc('fn_apply_match_elo', {
+                    p_tournament_id: match.tournament_id,
+                    p_player1_id: match.player1_id,
+                    p_player2_id: match.player2_id,
+                    p_score1: match.player1_score,
+                    p_score2: match.player2_score,
+                    p_k: 32
+                });
+            }
+
             if (matchError) throw matchError;
 
             // ✅ Insert match sets into "match_sets" table
