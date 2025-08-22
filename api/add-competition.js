@@ -1,67 +1,69 @@
-const supabase = require('../services/db');
-const { formatDateForDB } = require('../utils/utils');
+// /api/add-competition.js
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const applyCors = require('./cors');
 
+// opzionale: se hai già una util per le date, riusala
+const { formatDateForDB } = require('../utils/utils');
+const normalizeDate = (d) => {
+    if (!d) return null;
+    try { return formatDateForDB ? formatDateForDB(d) : new Date(d).toISOString().slice(0, 10); }
+    catch { return null; }
+};
 
 module.exports = (req, res) => {
-    // ✅ Apply CORS headers with `next()`
     applyCors(req, res, async () => {
-        // ✅ Ensure only POST requests are processed
         if (req.method !== 'POST') {
             return res.status(405).json({ error: 'Method Not Allowed' });
         }
 
-        const { date, player1, player2, p1Score, p2Score, setsPoints } = req.body;
-
-        if (!date || !player1 || !player2 || p1Score === undefined || p2Score === undefined) {
-            return res.status(400).json({ error: 'Invalid data. Ensure all fields are provided.' });
-        }
-
         try {
-            // ✅ Insert match into Supabase "matches" table
-            const { data: match, error: matchError } = await supabase
-                .from('competition')
-                .insert([
-                    {
-                        created: formatDateForDB(date),
-                        player1_id: player1,
-                        player2_id: player2,
-                        player1_score: p1Score,
-                        player2_score: p2Score,
-                        competition_id: 1 // Adjust based on your logic
-                    }
-                ])
+            const {
+                name,
+                type,        // 'league' | 'elimination' | altro testo ammesso dalla tabella
+                bestOf,      // -> setsType (es. 3, 5, 7)
+                pointsTo,    // -> pointsType (es. 11, 21)
+                startDate,   // opzionale, ISO/string
+                endDate      // opzionale, ISO/string
+            } = req.body || {};
+
+            // ✅ Validazioni base
+            if (!name || !type || bestOf == null || pointsTo == null) {
+                return res.status(400).json({
+                    error: 'Invalid data. Required: name, type, bestOf, pointsTo.'
+                });
+            }
+            if (typeof bestOf !== 'number' || typeof pointsTo !== 'number') {
+                return res.status(400).json({ error: 'bestOf and pointsTo must be numbers.' });
+            }
+
+            // ✅ Prepara il record da inserire
+            const payload = {
+                name: String(name).trim(),
+                type: String(type).trim(),
+                setsType: bestOf,
+                pointsType: pointsTo,
+                start_date: normalizeDate(startDate),
+                end_date: normalizeDate(endDate)
+            };
+
+            // ✅ Insert nella tabella (es. "competitions")
+            const { data: competition, error } = await supabase
+                .from('competitions')            // <-- usa il nome della tua tabella qui
+                .insert([payload])
                 .select()
                 .single();
 
-            if (!match) {
-                throw new Error('Insert su matches fallito: match null');
-            } else {
-                await supabase.rpc('fn_apply_match_elo', {
-                    p_competition_id: match.competition_id,
-                    p_player1_id: match.player1_id,
-                    p_player2_id: match.player2_id,
-                    p_score1: match.player1_score,
-                    p_score2: match.player2_score,
-                    p_k: 32
-                });
-            }
+            if (error) throw error;
 
-            if (matchError) throw matchError;
-
-            // ✅ Insert match sets into "match_sets" table
-            const setsData = setsPoints.map(set => ({
-                match_id: match.id,
-                player1_score: set.player1,
-                player2_score: set.player2
-            }));
-
-            const { error: setsError } = await supabase.from('match_sets').insert(setsData);
-            if (setsError) throw setsError;
-
-            return res.status(200).json({ message: 'Match added successfully', match });
-        } catch (error) {
-
+            return res.status(201).json({
+                message: 'Competition created successfully',
+                competition
+            });
+        } catch (err) {
+            console.error('Error inserting competition:', err.message || err);
+            return res.status(500).json({ error: 'Failed to create competition' });
         }
     });
 };
