@@ -1,4 +1,6 @@
-const supabase = require('../services/db');
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const { formatDateForDB } = require('../utils/utils');
 const applyCors = require('./cors');
 
@@ -33,7 +35,7 @@ module.exports = (req, res) => {
                 ])
                 .select()
                 .single();
-
+                console.log('Match inserted:', match);
             if (!match) {
                 throw new Error('Insert su matches fallito: match null');
             } else {
@@ -52,8 +54,8 @@ module.exports = (req, res) => {
             // ✅ Insert match sets into "match_sets" table
             const setsData = setsPoints.map(set => ({
                 match_id: match.id,
-                player1_score: set.player1,
-                player2_score: set.player2
+                player1_score: set.player1Points,
+                player2_score: set.player2Points
             }));
 
             const { error: setsError } = await supabase.from('match_sets').insert(setsData);
