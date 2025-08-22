@@ -20,7 +20,7 @@ module.exports = (req, res) => {
         try {
             // ✅ Insert match into Supabase "matches" table
             const { data: match, error: matchError } = await supabase
-                .from('matches')
+                .from('competition')
                 .insert([
                     {
                         created: formatDateForDB(date),
@@ -28,7 +28,7 @@ module.exports = (req, res) => {
                         player2_id: player2,
                         player1_score: p1Score,
                         player2_score: p2Score,
-                        competition_id: 1
+                        competition_id: 1 // Adjust based on your logic
                     }
                 ])
                 .select()
@@ -61,8 +61,7 @@ module.exports = (req, res) => {
 
             return res.status(200).json({ message: 'Match added successfully', match });
         } catch (error) {
-            console.error('Error inserting match data:', error.message);
-            return res.status(500).json({ error: 'Failed to add match' });
+
         }
     });
 };

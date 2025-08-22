@@ -6,31 +6,31 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
   try {
-    const { tournament_id } = req.query;
+    const { competition_id } = req.query;
 
     let q = supabase
-      .from('v_ranking_by_tournament')
+      .from('v_ranking_by_competition')
       .select('*');
 
-    if (tournament_id !== undefined) {
-      const id = Number(tournament_id);
+    if (competition_id !== undefined) {
+      const id = Number(competition_id);
       if (!Number.isFinite(id) || id <= 0) {
-        return res.status(400).json({ error: 'tournament_id deve essere un numero > 0' });
+        return res.status(400).json({ error: 'competition_id deve essere un numero > 0' });
       }
-      q = q.eq('tournament_id', id).order('rank', { ascending: true });
+      q = q.eq('competition_id', id).order('rating', { ascending: true });
     } else {
-      q = q.order('tournament_id', { ascending: true })
-           .order('rank', { ascending: true });
+      q = q.order('competition_id', { ascending: true })
+           .order('rating', { ascending: true });
     }
 
     const { data, error } = await q;
     if (error) throw error;
 
     res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
-    res.setHeader('Vary', 'tournament_id');
+    res.setHeader('Vary', 'competition_id');
 
     return res.status(200).json({
-      tournament_id: tournament_id ? Number(tournament_id) : null,
+      competition_id: competition_id ? Number(competition_id) : null,
       ranking: data,
       generatedAt: new Date().toISOString(),
     });

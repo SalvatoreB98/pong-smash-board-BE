@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
         const { data: matches, error: matchesError } = await supabase
             .from('matches')
             .select(`
-                id, player1_id, player2_id, player1_score, player2_score, tournament_id, created, 
+                id, player1_id, player2_id, player1_score, player2_score, competition_id, created, 
                 match_sets (id, match_id, player1_score, player2_score)
             `);
 
