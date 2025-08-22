@@ -17,10 +17,10 @@ module.exports = async (req, res) => {
       if (!Number.isFinite(id) || id <= 0) {
         return res.status(400).json({ error: 'competition_id deve essere un numero > 0' });
       }
-      q = q.eq('competition_id', id).order('rating', { ascending: true });
+      q = q.eq('competition_id', id).order('rank', { ascending: true });
     } else {
       q = q.order('competition_id', { ascending: true })
-           .order('rating', { ascending: true });
+           .order('rank', { ascending: true });
     }
 
     const { data, error } = await q;
