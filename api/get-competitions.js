@@ -45,7 +45,7 @@ module.exports = (req, res) => {
       {
         const { data, error } = await supabase
           .from('players')
-          .select('playerid, id, auth_user_id, user_id, uid, email')
+          .select('id, id, auth_user_id, user_id, uid, email')
           .or(
             [
               `auth_user_id.eq.${user.id}`,
@@ -65,7 +65,7 @@ module.exports = (req, res) => {
       if (!playerId && user.email) {
         const { data, error } = await supabase
           .from('players')
-          .select('playerid, id, email')
+          .select('id, id, email')
           .eq('email', user.email)
           .limit(1)
           .maybeSingle();
@@ -97,7 +97,7 @@ module.exports = (req, res) => {
         return res.status(200).json({
           player: null,
           competitions: uniqueBy(competitions),
-          meta: { from: ['created_by/createdBy'], note: 'playerId non trovato per utente' },
+          meta: { from: ['created_by/createdBy'], note: 'id non trovato per utente' },
         });
       }
 
