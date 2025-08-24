@@ -39,7 +39,7 @@ module.exports = (req, res) => {
       {
         const { data, error } = await supabase
           .from('players')
-          .select('playerid, id, auth_user_id, user_id, uid, email')
+          .select('id, id, auth_user_id, user_id, uid, email')
           .or(
             [
               `auth_user_id.eq.${user.id}`,
@@ -50,7 +50,7 @@ module.exports = (req, res) => {
           .limit(1)
           .maybeSingle();
 
-        if (!error && data) authorPlayerId = data.playerid ?? data.id ?? null;
+        if (!error && data) authorPlayerId = data.id ?? data.id ?? null;
       }
 
       const {

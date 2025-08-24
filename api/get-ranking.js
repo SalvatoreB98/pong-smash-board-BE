@@ -1,4 +1,3 @@
-// /api/ranking.js
 const supabase = require('../services/db');
 
 module.exports = async (req, res) => {
