@@ -56,8 +56,8 @@ module.exports = (req, res) => {
       const {
         name,
         type,        // 'league' | 'elimination' | altro testo ammesso dalla tabella
-        bestOf,      // -> setsType (es. 3, 5, 7)
-        pointsTo,    // -> pointsType (es. 11, 21)
+        bestOf,      // -> (es. 3, 5, 7)
+        pointsTo,    // -> (es. 11, 21)
         startDate,   // opzionale, ISO/string
         endDate      // opzionale, ISO/string
       } = req.body || {};
@@ -76,8 +76,8 @@ module.exports = (req, res) => {
       const basePayload = {
         name: String(name).trim(),
         type: String(type).trim(),
-        setsType: bestOf,
-        pointsType: pointsTo,
+        sets_type: bestOf,
+        points_type: pointsTo,
         start_date: normalizeDate(startDate),
         end_date: normalizeDate(endDate),
       };
@@ -112,10 +112,26 @@ module.exports = (req, res) => {
       }
 
       if (ins.error) throw ins.error;
+      // 1) id competizione creata
+      const compId = ins.data.id;
 
+      // 2) set/aggiorna la active_competition_id dello user
+      await supabase.from('user_state').upsert(
+        { user_id: user.id, active_competition_id: compId, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' } // ← upsert per chiave user_id
+      );
+      
+      const { data: userState, error: usErr } = await supabase
+        .from('user_state')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      if (usErr) throw usErr;
+      
       return res.status(201).json({
         message: 'Competition created successfully',
-        competition: ins.data
+        competition: ins.data,
+        userState,
       });
     } catch (err) {
       console.error('Error inserting competition:', err?.message || err);
