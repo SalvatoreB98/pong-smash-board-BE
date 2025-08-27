@@ -110,15 +110,13 @@ module.exports = (req, res) => {
         if (!error && Array.isArray(data)) {
           for (const r of data) if (r?.competition_id) out.add(r.competition_id);
         } else if (error && error.code === '42P01') {
-            console.warn(`Table ${tableName} not found, skipping.`);
+          console.warn(`Table ${tableName} not found, skipping.`);
         }
         return Array.from(out);
       };
 
       const compIdsFromPivot = [
-        ...(await collectCompIds('competition_players')),
-        ...(await collectCompIds('participants')),
-      ];
+        ...(await collectCompIds('competition_players'))];
 
       if (compIdsFromPivot.length) {
         const { data, error } = await supabase
@@ -152,6 +150,19 @@ module.exports = (req, res) => {
         const db = b?.start_date || b?.startDate || '';
         return (db || '').localeCompare(da || '');
       });
+
+      for (const comp of final) {
+        const { data: players, error: pErr } = await supabase
+          .from('competition_players')
+          .select('player_id, players(id, name, email)')
+          .eq('competition_id', comp.id);
+
+        if (!pErr && players) {
+          comp.players = players.map(p => p.players);
+        } else {
+          comp.players = [];
+        }
+      }
 
       return res.status(200).json({
         player: { playerId, playerRow },

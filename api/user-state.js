@@ -33,8 +33,8 @@ module.exports = (req, res) => {
       if (req.method === 'GET') {
         // 2) Read user_state per utente
         const { data, error } = await supabase
-          .from('user_state')
-          .select('id, user_id, state, active_competition_id, updated_at, created_at')
+          .from('v_user_profile')
+          .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
 
