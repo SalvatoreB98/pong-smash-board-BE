@@ -116,7 +116,7 @@ module.exports = (req, res) => {
       };
 
       const compIdsFromPivot = [
-        ...(await collectCompIds('competition_players'))];
+        ...(await collectCompIds('competitions_players'))];
 
       if (compIdsFromPivot.length) {
         const { data, error } = await supabase
@@ -153,8 +153,8 @@ module.exports = (req, res) => {
 
       for (const comp of final) {
         const { data: players, error: pErr } = await supabase
-          .from('competition_players')
-          .select('player_id, players(id, name, email)')
+          .from('competitions_players')
+          .select('player_id, players(id, nickname, email, image_url)')
           .eq('competition_id', comp.id);
 
         if (!pErr && players) {
