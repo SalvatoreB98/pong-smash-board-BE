@@ -59,7 +59,8 @@ module.exports = (req, res) => {
         bestOf,      // -> (es. 3, 5, 7)
         pointsTo,    // -> (es. 11, 21)
         startDate,   // opzionale, ISO/string
-        endDate      // opzionale, ISO/string
+        endDate,      // opzionale, ISO/string
+        management
       } = req.body || {};
 
       // ✅ Validazioni base
@@ -76,6 +77,7 @@ module.exports = (req, res) => {
       const basePayload = {
         name: String(name).trim(),
         type: String(type).trim(),
+        management: String(management).trim(),
         sets_type: bestOf,
         points_type: pointsTo,
         start_date: normalizeDate(startDate),
