@@ -20,7 +20,7 @@ module.exports = (req, res) => {
             // ✅ Trova la competizione con quel codice
             const { data: competition, error: compError } = await supabase
                 .from('competitions')
-                .select('id, name')
+                .select('id, name, management')
                 .eq('code', code)
                 .single();
 
@@ -33,6 +33,10 @@ module.exports = (req, res) => {
             if (compError || !competition) {
                 console.error('Competition not found:', compError?.message);
                 return res.status(404).json({ error: 'Competition not found' });
+            }
+
+            if (competition.management === 'admin') {
+                return res.status(403).json({ error: 'This competition is managed by admin and cannot be joined.', code: 'admin-managed' });
             }
 
             if (profileError || !profile) {
