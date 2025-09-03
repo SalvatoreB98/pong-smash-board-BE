@@ -2,7 +2,10 @@
 const { createClient } = require('@supabase/supabase-js');
 const applyCors = require('./cors');
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
 // ---- helpers
 const getBearer = (req) => {
@@ -37,137 +40,110 @@ module.exports = (req, res) => {
       }
       const user = userData.user;
 
-      // 2) Trova il playerId “associato” a questo utente
-      //    Prova più naming comuni: auth_user_id | user_id | uid
+      // 2) Trova il playerId
       let playerId = null;
       let playerRow = null;
 
-      {
-        const { data, error } = await supabase
-          .from('players')
-          .select('id, id, auth_user_id, user_id, uid, email')
-          .or(
-            [
-              `auth_user_id.eq.${user.id}`,
-              `user_id.eq.${user.id}`,
-              `uid.eq.${user.id}`,
-            ].join(',')
-          )
-          .limit(1)
-          .maybeSingle();
+      const { data: playerData } = await supabase
+        .from('players')
+        .select('id, auth_user_id, user_id, uid, email')
+        .or(
+          [
+            `auth_user_id.eq.${user.id}`,
+            `user_id.eq.${user.id}`,
+            `uid.eq.${user.id}`,
+            `email.eq.${user.email}`
+          ].join(',')
+        )
+        .limit(1)
+        .maybeSingle();
 
-        if (!error && data) {
-          playerRow = data;
-          playerId = data.playerid ?? data.id ?? null;
+      if (playerData) {
+        playerRow = playerData;
+        playerId = playerData.id;
+      }
+
+      // 3) Raccogli competitions in parallelo
+      const [byCreated, byCreatedAlt, compFromPivot, compFromMatches] = await Promise.all([
+        supabase.from('competitions').select('*').eq('created_by', user.id),
+        supabase.from('competitions').select('*').eq('createdBy', user.id),
+        playerId
+          ? supabase
+            .from('competitions_players')
+            .select('competition_id')
+            .eq('player_id', playerId)
+          : { data: [] },
+        playerId
+          ? supabase
+            .from('matches')
+            .select('competition_id')
+            .or(`player1_id.eq.${playerId},player2_id.eq.${playerId}`)
+          : { data: [] }
+      ]);
+
+      let competitions = [];
+      if (byCreated.data) competitions.push(...byCreated.data);
+      if (byCreatedAlt.data) competitions.push(...byCreatedAlt.data);
+
+      // competitions da pivot
+      if (compFromPivot.data?.length) {
+        const ids = compFromPivot.data.map(r => r.competition_id).filter(Boolean);
+        if (ids.length) {
+          const { data } = await supabase
+            .from('competitions')
+            .select('*')
+            .in('id', ids);
+          if (data) competitions.push(...data);
         }
       }
 
-      if (!playerId && user.email) {
-        const { data, error } = await supabase
-          .from('players')
-          .select('id, id, email')
-          .eq('email', user.email)
-          .limit(1)
-          .maybeSingle();
-        if (!error && data) {
-          playerRow = data;
-          playerId = data.playerid ?? data.id ?? null;
+      // competitions da matches
+      if (compFromMatches.data?.length) {
+        const ids = Array.from(
+          new Set(compFromMatches.data.map(m => m.competition_id).filter(Boolean))
+        );
+        if (ids.length) {
+          const { data } = await supabase
+            .from('competitions')
+            .select('*')
+            .in('id', ids);
+          if (data) competitions.push(...data);
         }
       }
 
-      const competitions = [];
-
-      {
-        const { data, error } = await supabase
-          .from('competitions')
-          .select('*')
-          .eq('created_by', user.id);
-        if (!error && data) competitions.push(...data);
-      }
-      //     Secondo tentativo: createdBy
-      {
-        const { data, error } = await supabase
-          .from('competitions')
-          .select('*')
-          .eq('createdBy', user.id);
-        if (!error && data) competitions.push(...data);
-      }
-
-      if (!playerId) {
-        return res.status(200).json({
-          player: null,
-          competitions: uniqueBy(competitions),
-          meta: { from: ['created_by/createdBy'], note: 'id non trovato per utente' },
-        });
-      }
-
-      const collectCompIds = async (tableName) => {
-        const out = new Set();
-        const { data, error } = await supabase
-          .from(tableName)
-          .select('competition_id')
-          .eq('player_id', playerId);
-        if (!error && Array.isArray(data)) {
-          for (const r of data) if (r?.competition_id) out.add(r.competition_id);
-        } else if (error && error.code === '42P01') {
-          console.warn(`Table ${tableName} not found, skipping.`);
-        }
-        return Array.from(out);
-      };
-
-      const compIdsFromPivot = [
-        ...(await collectCompIds('competitions_players'))];
-
-      if (compIdsFromPivot.length) {
-        const { data, error } = await supabase
-          .from('competitions')
-          .select('*')
-          .in('id', compIdsFromPivot);
-        if (!error && data) competitions.push(...data);
-      }
-
-      {
-        const { data: matches, error } = await supabase
-          .from('matches')
-          .select('competition_id, player1_id, player2_id')
-          .or(`player1_id.eq.${playerId},player2_id.eq.${playerId}`);
-        if (!error && Array.isArray(matches)) {
-          const ids = Array.from(
-            new Set(matches.map(m => m.competition_id).filter(Boolean))
-          );
-          if (ids.length) {
-            const { data, error: compErr } = await supabase
-              .from('competitions')
-              .select('*')
-              .in('id', ids);
-            if (!compErr && data) competitions.push(...data);
-          }
-        }
-      }
-
+      // 4) Deduplica + sort
       const final = uniqueBy(competitions).sort((a, b) => {
         const da = a?.start_date || a?.startDate || '';
         const db = b?.start_date || b?.startDate || '';
         return (db || '').localeCompare(da || '');
       });
 
-      for (const comp of final) {
-        const { data: players, error: pErr } = await supabase
+      // 5) Carica tutti i players con una sola query
+      let playersByCompetition = {};
+      if (final.length) {
+        const { data: allPlayers } = await supabase
           .from('competitions_players')
-          .select('player_id, players(id, nickname, email, image_url)')
-          .eq('competition_id', comp.id);
+          .select('competition_id, players(id, nickname, email, image_url)')
+          .in('competition_id', final.map(c => c.id));
 
-        if (!pErr && players) {
-          comp.players = players.map(p => p.players);
-        } else {
-          comp.players = [];
+        if (allPlayers) {
+          for (const row of allPlayers) {
+            if (!playersByCompetition[row.competition_id]) {
+              playersByCompetition[row.competition_id] = [];
+            }
+            playersByCompetition[row.competition_id].push(row.players);
+          }
         }
       }
 
+      for (const comp of final) {
+        comp.players = playersByCompetition[comp.id] || [];
+      }
+
       return res.status(200).json({
-        player: { playerId, playerRow },
+        player: playerId ? { playerId, playerRow } : null,
         competitions: final,
-        meta: { from: ['created_by/createdBy', 'pivot', 'matches'] },
+        meta: { optimized: true }
       });
     } catch (err) {
       console.error('Error in get-competitions:', err?.message || err);
