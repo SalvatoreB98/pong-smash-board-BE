@@ -19,10 +19,21 @@ module.exports = async (req, res) => {
       q = q.eq('competition_id', id).order('rank', { ascending: true });
     } else {
       q = q.order('competition_id', { ascending: true })
-           .order('rank', { ascending: true });
+        .order('rank', { ascending: true });
     }
 
     const { data, error } = await q;
+    const ranking = data.map((entry) => ({
+      playerid: entry.player_id,
+      name: entry.player_name || entry.player_nickname || 'Player',
+      image_url: entry.player_image_url,
+      played: entry.played,
+      wins: entry.wins,
+      winrate: Number(entry.winrate),
+      rating: Number(entry.rating),
+      nickname: entry.player_nickname || 'Player',
+    }));
+
     if (error) throw error;
 
     res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
@@ -30,7 +41,7 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       competition_id: competition_id ? Number(competition_id) : null,
-      ranking: data,
+      ranking,
       generatedAt: new Date().toISOString(),
     });
   } catch (e) {

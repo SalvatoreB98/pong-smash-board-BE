@@ -124,7 +124,7 @@ module.exports = async (req, res) => {
     if (playerIds.length) {
       const { data: playersData, error: playersError } = await supabase
         .from('players')
-        .select('id, name, image_url')
+        .select('id, name, image_url, nickname')
         .in('id', playerIds);
 
       if (playersError) throw playersError;
@@ -132,12 +132,12 @@ module.exports = async (req, res) => {
     }
 
     const playerMap = Object.fromEntries(
-      players.map((p) => [p.id, { name: p.name, image: p.image_url }])
+      players.map((p) => [p.id, { nickname: p.nickname, image: p.image_url }])
     );
 
     const formattedMatches = (matches || []).map((match) => ({
-      player1_name: playerMap[match.player1_id]?.name || 'Unknown Player',
-      player2_name: playerMap[match.player2_id]?.name || 'Unknown Player',
+      player1_name: playerMap[match.player1_id]?.nickname || 'Unknown Player',
+      player2_name: playerMap[match.player2_id]?.nickname || 'Unknown Player',
       player1_img: playerMap[match.player1_id]?.image || null,
       player2_img: playerMap[match.player2_id]?.image || null,
       ...match,
