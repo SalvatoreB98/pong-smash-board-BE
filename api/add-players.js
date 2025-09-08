@@ -18,25 +18,50 @@ module.exports = (req, res) => {
         }
 
         try {
-            const rows = players.map(p => ({
-                name: p.name,
-                surname: p.surname,
-                nickname: p.nickname,
-                avatar_url: p.imageUrl,
-                competition_id: competitionId,
-            }));
-
-            const { data, error } = await supabase
-                .from('competition_players')
-                .insert(rows)
+            // 1) Inserisci i giocatori in `players`
+            const { data: newPlayers, error: playersErr } = await supabase
+                .from('players')
+                .insert(
+                    players.map(p => ({
+                        name: p.name ?? '',
+                        lastname: p.surname ?? '',
+                        nickname: p.nickname,
+                        image_url: p.imageUrl,
+                        auth_user_id: null // admin-created player
+                    }))
+                )
                 .select();
 
-            if (error) throw error;
+            if (playersErr) {
+                console.error('Error inserting players:', playersErr);
+                return res.status(400).json({ error: playersErr.message });
+            }
 
-            return res.status(200).json({ message: 'Players added successfully', players: data });
+            // 2) Inserisci join in competitions_players
+            const joins = newPlayers.map(pl => ({
+                competition_id: competitionId,
+                player_id: pl.id,
+            }));
+
+            const { data: joined, error: joinErr } = await supabase
+                .from('competitions_players')
+                .insert(joins)
+                .select();
+
+            if (joinErr) {
+                console.error('Error inserting competition players:', joinErr);
+                return res.status(400).json({ error: joinErr.message });
+            }
+
+            return res.status(200).json({
+                message: 'Players added successfully',
+                players: newPlayers,
+                relations: joined,
+            });
         } catch (err) {
-            console.error('Error inserting players:', err);
+            console.error('Unexpected error inserting players:', err);
             return res.status(500).json({ error: 'Failed to add players' });
         }
     });
 };
+    
