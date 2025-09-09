@@ -1,14 +1,8 @@
 // /api/delete-competition.js
-const { createClient } = require('@supabase/supabase-js');
 const applyCors = require('./cors');
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-
-const getBearer = (req) => {
-    const h = req.headers?.authorization || req.headers?.Authorization || '';
-    if (!h.startsWith('Bearer ')) return null;
-    return h.slice('Bearer '.length).trim();
-};
+const supabase = require('../lib/supabase');
+const { requireUser } = require('../lib/auth');
+const handleError = require('../lib/error');
 
 module.exports = (req, res) => {
     applyCors(req, res, async () => {
@@ -21,14 +15,7 @@ module.exports = (req, res) => {
 
         try {
             // 1) Auth
-            const token = getBearer(req);
-            if (!token) return res.status(401).json({ error: 'Missing Bearer token' });
-
-            const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-            if (userErr || !userData?.user) {
-                return res.status(401).json({ error: 'Invalid token' });
-            }
-            const user = userData.user;
+            const user = await requireUser(req);
 
             const { competitionId } = req.body || {};
             if (!competitionId) {
@@ -84,8 +71,7 @@ module.exports = (req, res) => {
                 competitionId,
             });
         } catch (err) {
-            console.error('Error deleting competition:', err?.message || err);
-            return res.status(500).json({ error: 'Failed to delete competition' });
+            return handleError(res, err, 'Failed to delete competition');
         }
     });
 };

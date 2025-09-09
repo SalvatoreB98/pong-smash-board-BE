@@ -1,6 +1,7 @@
 // /api/get-matches.js
-const supabase = require('../services/db');
+const supabase = require('../lib/supabase');
 const { parseData } = require('../utils/stats.js');
+const handleError = require('../lib/error');
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
@@ -157,7 +158,6 @@ module.exports = async (req, res) => {
       badges,
     });
   } catch (error) {
-    console.error('Error fetching matches or players:', error?.message || error);
-    return res.status(500).json({ error: 'Failed to fetch match or player data.' });
+    return handleError(res, error, 'Failed to fetch match or player data.');
   }
 };

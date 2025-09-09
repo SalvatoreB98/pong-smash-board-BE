@@ -1,7 +1,6 @@
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const supabase = require('../lib/supabase');
 const applyCors = require('./cors');
+const handleError = require('../lib/error');
 
 module.exports = (req, res) => {
     applyCors(req, res, async () => {
@@ -113,8 +112,7 @@ module.exports = (req, res) => {
                 relation
             });
         } catch (error) {
-            console.error('Error joining competition:', error.message);
-            return res.status(500).json({ error: 'Failed to join competition' });
+            return handleError(res, error, 'Failed to join competition');
         }
     });
 };

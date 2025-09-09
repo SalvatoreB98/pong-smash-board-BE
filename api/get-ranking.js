@@ -1,4 +1,5 @@
-const supabase = require('../services/db');
+const supabase = require('../lib/supabase');
+const handleError = require('../lib/error');
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
@@ -45,7 +46,6 @@ module.exports = async (req, res) => {
       generatedAt: new Date().toISOString(),
     });
   } catch (e) {
-    console.error('Ranking API error:', e);
-    return res.status(500).json({ error: 'Failed to fetch ranking' });
+    return handleError(res, e, 'Failed to fetch ranking');
   }
 };

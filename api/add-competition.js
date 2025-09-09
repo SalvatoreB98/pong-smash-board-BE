@@ -1,21 +1,9 @@
 // /api/add-competition.js
-const { createClient } = require('@supabase/supabase-js');
 const applyCors = require('./cors');
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const { formatDateForDB } = require('../utils/utils');
-
-const normalizeDate = (d) => {
-  if (!d) return null;
-  try { return formatDateForDB ? formatDateForDB(d) : new Date(d).toISOString().slice(0, 10); }
-  catch { return null; }
-};
-
-const getBearer = (req) => {
-  const h = req.headers?.authorization || req.headers?.Authorization || '';
-  if (!h.startsWith('Bearer ')) return null;
-  return h.slice('Bearer '.length).trim();
-};
+const supabase = require('../lib/supabase');
+const { requireUser } = require('../lib/auth');
+const normalizeDate = require('../lib/normalizeDate');
+const handleError = require('../lib/error');
 
 module.exports = (req, res) => {
   applyCors(req, res, async () => {
@@ -25,14 +13,7 @@ module.exports = (req, res) => {
 
     try {
       // 1) Auth via Bearer: servirà per createdBy
-      const token = getBearer(req);
-      if (!token) return res.status(401).json({ error: 'Missing Bearer token' });
-
-      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-      if (userErr || !userData?.user) {
-        return res.status(401).json({ error: 'Invalid token' });
-      }
-      const user = userData.user;
+      const user = await requireUser(req);
 
       // (opzionale) prova a ricavare anche playerId dell’autore
       let authorPlayerId = null;
@@ -136,8 +117,7 @@ module.exports = (req, res) => {
         userState,
       });
     } catch (err) {
-      console.error('Error inserting competition:', err?.message || err);
-      return res.status(500).json({ error: 'Failed to create competition' });
+      return handleError(res, err, 'Failed to create competition');
     }
   });
 };
