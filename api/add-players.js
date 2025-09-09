@@ -1,10 +1,6 @@
-const { createClient } = require('@supabase/supabase-js');
 const applyCors = require('./cors');
-
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
-);
+const supabase = require('../lib/supabase');
+const handleError = require('../lib/error');
 
 module.exports = (req, res) => {
     applyCors(req, res, async () => {
@@ -33,7 +29,6 @@ module.exports = (req, res) => {
                 .select();
 
             if (playersErr) {
-                console.error('Error inserting players:', playersErr);
                 return res.status(400).json({ error: playersErr.message });
             }
 
@@ -49,7 +44,6 @@ module.exports = (req, res) => {
                 .select();
 
             if (joinErr) {
-                console.error('Error inserting competition players:', joinErr);
                 return res.status(400).json({ error: joinErr.message });
             }
 
@@ -59,8 +53,7 @@ module.exports = (req, res) => {
                 relations: joined,
             });
         } catch (err) {
-            console.error('Unexpected error inserting players:', err);
-            return res.status(500).json({ error: 'Failed to add players' });
+            return handleError(res, err, 'Failed to add players');
         }
     });
 };

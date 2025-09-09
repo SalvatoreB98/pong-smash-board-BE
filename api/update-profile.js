@@ -1,24 +1,15 @@
 // /api/update-profile.js
-const { createClient } = require('@supabase/supabase-js');
 const applyCors = require('./cors');
 const { UserProgressStateEnum } = require('../utils/constants');
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-
-const getBearer = (req) => {
-  const h = req.headers?.authorization || req.headers?.Authorization || '';
-  return h.startsWith('Bearer ') ? h.slice('Bearer '.length).trim() : null;
-};
+const supabase = require('../lib/supabase');
+const { requireUser } = require('../lib/auth');
+const handleError = require('../lib/error');
 
 module.exports = (req, res) => {
   applyCors(req, res, async () => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-    const token = getBearer(req);
-    if (!token) return res.status(401).json({ error: 'Missing Bearer token' });
-
-    const { data: auth, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !auth?.user) return res.status(401).json({ error: 'Invalid token' });
-    const user = auth.user;
+    const user = await requireUser(req);
 
     const { nickname, imageUrl } = req.body || {};
     if (!nickname || nickname.length < 3 || nickname.length > 32) {
@@ -54,8 +45,7 @@ module.exports = (req, res) => {
 
       return res.status(200).json({ message: 'Profile updated', nickname, imageUrl: imageUrl || null, state: NEW_STATE });
     } catch (e) {
-      console.error('update-profile error:', e);
-      return res.status(500).json({ error: 'Internal Server Error' });
+      return handleError(res, e, 'Internal Server Error');
     }
   });
 };

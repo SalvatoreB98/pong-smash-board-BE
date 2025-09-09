@@ -1,8 +1,7 @@
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const supabase = require('../lib/supabase');
 const { formatDateForDB } = require('../utils/utils');
 const applyCors = require('./cors');
+const handleError = require('../lib/error');
 
 
 module.exports = (req, res) => {
@@ -33,9 +32,8 @@ module.exports = (req, res) => {
                         competition_id: competitionId
                     }
                 ])
-                .select()
-                if (matchError) throw matchError;
-                console.log('Match inserted:', match);
+                .select();
+            if (matchError) throw matchError;
             if (!match) {
                 throw new Error('Insert su matches fallito: match null');
             } else {
@@ -49,8 +47,6 @@ module.exports = (req, res) => {
                 });
             }
 
-            if (matchError) throw matchError;
-
             // ✅ Insert match sets into "match_sets" table
             const setsData = setsPoints.map(set => ({
                 match_id: match.id,
@@ -63,8 +59,7 @@ module.exports = (req, res) => {
 
             return res.status(200).json({ message: 'Match added successfully', match });
         } catch (error) {
-            console.error('Error inserting match data:', error.message);
-            return res.status(500).json({ error: 'Failed to add match' });
+            return handleError(res, error, 'Failed to add match');
         }
     });
 };
