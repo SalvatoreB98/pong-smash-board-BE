@@ -1,14 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
-
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+
 const { formatDateForDB } = require('../utils/utils');
 const applyCors = require('./cors');
-
+const { fetchCompetitionData } = require('../services/matches');
 
 module.exports = (req, res) => {
-    // ✅ Apply CORS headers with `next()`
     applyCors(req, res, async () => {
-        // ✅ Ensure only POST requests are processed
         if (req.method !== 'POST') {
             return res.status(405).json({ error: 'Method Not Allowed' });
         }
@@ -20,8 +18,8 @@ module.exports = (req, res) => {
         }
 
         try {
-            // ✅ Insert match into Supabase "matches" table
-            const { data: match, error: matchError } = await supabase
+            // 1. Insert match
+            const { data: inserted, error: matchError } = await supabase
                 .from('matches')
                 .insert([
                     {
@@ -30,38 +28,40 @@ module.exports = (req, res) => {
                         player2_id: player2,
                         player1_score: p1Score,
                         player2_score: p2Score,
-                        competition_id: competitionId
-                    }
+                        competition_id: competitionId,
+                    },
                 ])
-                .select()
-                if (matchError) throw matchError;
-                console.log('Match inserted:', match);
-            if (!match) {
-                throw new Error('Insert su matches fallito: match null');
-            } else {
-                await supabase.rpc('fn_apply_match_elo', {
-                    p_competition_id: match.competition_id,
-                    p_player1_id: match.player1_id,
-                    p_player2_id: match.player2_id,
-                    p_score1: match.player1_score,
-                    p_score2: match.player2_score,
-                    p_k: 32
-                });
-            }
+                .select();
 
             if (matchError) throw matchError;
+            const match = inserted?.[0];
+            if (!match) throw new Error('Insert su matches fallito: match null');
 
-            // ✅ Insert match sets into "match_sets" table
-            const setsData = setsPoints.map(set => ({
-                match_id: match.id,
-                player1_score: set.player1Points,
-                player2_score: set.player2Points
-            }));
+            // 2. Apply ELO
+            await supabase.rpc('fn_apply_match_elo', {
+                p_competition_id: match.competition_id,
+                p_player1_id: match.player1_id,
+                p_player2_id: match.player2_id,
+                p_score1: match.player1_score,
+                p_score2: match.player2_score,
+                p_k: 32,
+            });
 
-            const { error: setsError } = await supabase.from('match_sets').insert(setsData);
-            if (setsError) throw setsError;
+            // 3. Insert match sets
+            if (Array.isArray(setsPoints) && setsPoints.length) {
+                const setsData = setsPoints.map((set) => ({
+                    match_id: match.id,
+                    player1_score: set.player1Points,
+                    player2_score: set.player2Points,
+                }));
 
-            return res.status(200).json({ message: 'Match added successfully', match });
+                const { error: setsError } = await supabase.from('match_sets').insert(setsData);
+                if (setsError) throw setsError;
+            }
+
+            // 4. Return the same payload as get-matches
+            const competitionData = await fetchCompetitionData(competitionId);
+            return res.status(200).json(competitionData);
         } catch (error) {
             console.error('Error inserting match data:', error.message);
             return res.status(500).json({ error: 'Failed to add match' });
