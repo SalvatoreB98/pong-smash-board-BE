@@ -30,27 +30,28 @@ module.exports = (req, res) => {
       }
       const user = userData.user;
 
+      // ---- GET
       if (req.method === 'GET') {
-        // 2) Read user_state per utente
         const { data, error } = await supabase
           .from('v_user_profile')
-          .select('*')
+          .select(`*,
+            active_competition:active_competition_id(*)
+            `)
           .eq('user_id', user.id)
           .maybeSingle();
 
         if (error) throw error;
 
-        // Cache privata, varia per Authorization (come in get-competitions)
         res.setHeader('Cache-Control', 'private, max-age=60');
         res.setHeader('Vary', 'Authorization');
 
         return res.status(200).json(data ?? {});
       }
 
+      // ---- POST
       if (req.method === 'POST') {
         const { state, active_competition_id = null } = req.body || {};
 
-        // 3) Upsert su chiave unica user_id (assicurati che esista UNIQUE(user_id) sulla tabella)
         const { data, error } = await supabase
           .from('user_state')
           .upsert(

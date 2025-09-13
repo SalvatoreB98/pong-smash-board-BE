@@ -12,9 +12,9 @@ module.exports = (req, res) => {
             return res.status(405).json({ error: 'Method Not Allowed' });
         }
 
-        const { players, competitionId } = req.body;
-        if (!players || !competitionId) {
-            return res.status(400).json({ error: 'Missing players or competitionId' });
+        const { players, competitionId, user_id } = req.body;
+        if (!players || !competitionId || !user_id) {
+            return res.status(400).json({ error: 'Missing players, competitionId or user_id' });
         }
 
         try {
@@ -47,7 +47,22 @@ module.exports = (req, res) => {
                 .from('competitions_players')
                 .insert(joins)
                 .select();
+                
+            const { error: stateErr } = await supabase
+                .from('user_state')
+                .upsert(
+                    {
+                        user_id,
+                        active_competition_id: competitionId,
+                        updated_at: new Date().toISOString()
+                    },
+                    { onConflict: 'user_id' }
+                );
 
+            if (stateErr) {
+                console.error('Error updating user_state:', stateErr);
+                return res.status(400).json({ error: stateErr.message });
+            }
             if (joinErr) {
                 console.error('Error inserting competition players:', joinErr);
                 return res.status(400).json({ error: joinErr.message });
@@ -64,4 +79,3 @@ module.exports = (req, res) => {
         }
     });
 };
-    
