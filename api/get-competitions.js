@@ -44,19 +44,21 @@ module.exports = (req, res) => {
       let playerId = null;
       let playerRow = null;
 
-      const { data: playerData } = await supabase
+      const { data: playerData, error: playerError } = await supabase
         .from('players')
-        .select('id, auth_user_id, user_id, uid, email')
+        .select('id, auth_user_id, email')
         .or(
           [
             `auth_user_id.eq.${user.id}`,
-            `user_id.eq.${user.id}`,
-            `uid.eq.${user.id}`,
             `email.eq.${user.email}`
           ].join(',')
         )
         .limit(1)
         .maybeSingle();
+
+      if (playerError) {
+        console.error('Error fetching player:', playerError.message);
+      }
 
       if (playerData) {
         playerRow = playerData;
@@ -139,6 +141,8 @@ module.exports = (req, res) => {
       for (const comp of final) {
         comp.players = playersByCompetition[comp.id] || [];
       }
+      console.log('Player object from Supabase:', JSON.stringify(playerRow, null, 2));
+      console.log('Final competitions array:', JSON.stringify(final, null, 2));
 
       return res.status(200).json({
         player: playerId ? { playerId, playerRow } : null,
