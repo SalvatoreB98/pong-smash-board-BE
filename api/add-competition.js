@@ -60,8 +60,19 @@ module.exports = (req, res) => {
         pointsTo,    // -> (es. 11, 21)
         startDate,   // opzionale, ISO/string
         endDate,      // opzionale, ISO/string
-        management
+        management,
+        isPartOfCompetition
       } = req.body || {};
+
+      const wantsToJoin =
+        isPartOfCompetition === true ||
+        isPartOfCompetition === 'true' ||
+        isPartOfCompetition === 1 ||
+        isPartOfCompetition === '1';
+
+      if (wantsToJoin && !authorPlayerId) {
+        return res.status(404).json({ error: 'Player not found for this user' });
+      }
 
       // ✅ Validazioni base
       if (!name || !type || bestOf == null || pointsTo == null) {
@@ -77,7 +88,7 @@ module.exports = (req, res) => {
       const basePayload = {
         name: String(name).trim(),
         type: String(type).trim(),
-        management: String(management).trim(),
+        management: management == null ? null : String(management).trim(),
         sets_type: bestOf,
         points_type: pointsTo,
         start_date: normalizeDate(startDate),
@@ -116,6 +127,24 @@ module.exports = (req, res) => {
       if (ins.error) throw ins.error;
       // 1) id competizione creata
       const compId = ins.data.id;
+      let relation = null;
+
+      if (wantsToJoin && authorPlayerId) {
+        const { data: relData, error: relError } = await supabase
+          .from('competitions_players')
+          .upsert(
+            {
+              competition_id: compId,
+              player_id: authorPlayerId,
+            },
+            { onConflict: 'competition_id,player_id' }
+          )
+          .select()
+          .maybeSingle();
+
+        if (relError) throw relError;
+        relation = relData || null;
+      }
 
       // 2) set/aggiorna la active_competition_id dello user
       await supabase.from('user_state').upsert(
@@ -134,6 +163,8 @@ module.exports = (req, res) => {
         message: 'Competition created successfully',
         competition: ins.data,
         userState,
+        relation,
+        isPartOfCompetition: wantsToJoin,
       });
     } catch (err) {
       console.error('Error inserting competition:', err?.message || err);
