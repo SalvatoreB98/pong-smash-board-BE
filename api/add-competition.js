@@ -34,8 +34,8 @@ module.exports = (req, res) => {
       }
       const user = userData.user;
 
-      // (opzionale) prova a ricavare anche playerId dell’autore
       let authorPlayerId = null;
+
       {
         const { data, error } = await supabase
           .from('players')
@@ -53,6 +53,19 @@ module.exports = (req, res) => {
         if (!error && data) authorPlayerId = data.id ?? data.id ?? null;
       }
 
+      const { data: playerData, error: playerError } = await supabase
+        .from('players')
+        .select('id, auth_user_id, email, nickname, image_url')
+        .or(
+          [
+        `auth_user_id.eq.${user.id}`,
+        `email.eq.${user.email}`,
+          ].join(',')
+        )
+        .limit(1)
+        .maybeSingle();
+
+
       const {
         name,
         type,        // 'league' | 'elimination' | altro testo ammesso dalla tabella
@@ -60,8 +73,19 @@ module.exports = (req, res) => {
         pointsTo,    // -> (es. 11, 21)
         startDate,   // opzionale, ISO/string
         endDate,      // opzionale, ISO/string
-        management
+        management,
+        isPartOfCompetition
       } = req.body || {};
+
+      const wantsToJoin =
+        isPartOfCompetition === true ||
+        isPartOfCompetition === 'true' ||
+        isPartOfCompetition === 1 ||
+        isPartOfCompetition === '1';
+
+      if (wantsToJoin && !playerData) {
+        return res.status(404).json({ error: 'Player not found for this user' });
+      }
 
       // ✅ Validazioni base
       if (!name || !type || bestOf == null || pointsTo == null) {
@@ -77,7 +101,7 @@ module.exports = (req, res) => {
       const basePayload = {
         name: String(name).trim(),
         type: String(type).trim(),
-        management: String(management).trim(),
+        management: management == null ? null : String(management).trim(),
         sets_type: bestOf,
         points_type: pointsTo,
         start_date: normalizeDate(startDate),
@@ -85,7 +109,6 @@ module.exports = (req, res) => {
       };
 
       // Inserimento con tentativi per il nome colonna createdBy
-      // 1) created_by + created_by_player_id
       const tryInsert = async (payload) => {
         return await supabase
           .from('competitions')
@@ -108,7 +131,7 @@ module.exports = (req, res) => {
         const payloadB = {
           ...basePayload,
           createdBy: user.id,
-          ...(authorPlayerId ? { createdByPlayerId: authorPlayerId } : {})
+          ...(authorPlayerId ? { created_by_player_id: authorPlayerId } : {})
         };
         ins = await tryInsert(payloadB);
       }
@@ -116,24 +139,45 @@ module.exports = (req, res) => {
       if (ins.error) throw ins.error;
       // 1) id competizione creata
       const compId = ins.data.id;
+      let relation = null;
+
+      if (wantsToJoin && playerData.id) {
+        const { data: relData, error: relError } = await supabase
+          .from('competitions_players')
+          .upsert(
+            {
+              competition_id: compId,
+              player_id: playerData.id,
+            },
+            { onConflict: 'competition_id,player_id' }
+          )
+          .select()
+          .maybeSingle();
+
+        if (relError) throw relError;
+        relation = relData || null;
+      }
 
       // 2) set/aggiorna la active_competition_id dello user
       await supabase.from('user_state').upsert(
         { user_id: user.id, active_competition_id: compId, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' } // ← upsert per chiave user_id
       );
-      
+
       const { data: userState, error: usErr } = await supabase
         .from('user_state')
         .select('*')
         .eq('user_id', user.id)
         .single();
       if (usErr) throw usErr;
-      
+
       return res.status(201).json({
         message: 'Competition created successfully',
         competition: ins.data,
         userState,
+        relation,
+        isPartOfCompetition: wantsToJoin,
+        players: playerData ? [playerData] : [],
       });
     } catch (err) {
       console.error('Error inserting competition:', err?.message || err);
