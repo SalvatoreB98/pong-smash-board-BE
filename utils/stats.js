@@ -17,6 +17,7 @@ function calculateStats(matches) {
 
     // Initialize structures
     matches.forEach(({ player1_id, player2_id, player1_score, player2_score, created }) => {
+        if (created === null) return; // Skip matches without a creation date
         const month = created.split('-')[1]; // Extract month from timestamp
 
         [player1_id, player2_id].forEach(player => {

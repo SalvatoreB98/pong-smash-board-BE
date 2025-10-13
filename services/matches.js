@@ -29,6 +29,7 @@ async function fetchCompetitionData(competitionId) {
       match_sets (id, match_id, player1_score, player2_score)
     `)
         .eq('competition_id', competitionId)
+        .not('created', 'is', null)  // ✅ solo match con created valorizzato
         .order('created', { ascending: false });
 
     if (matchesError) throw matchesError;
