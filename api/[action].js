@@ -8,6 +8,7 @@ const getGroups = require('../lib/get-groups');
 const getMatches = require('../lib/get-matches');
 const getPlayers = require('../lib/get-players');
 const getRanking = require('../lib/get-ranking');
+const getCompetitionView = require('../lib/get-competition-view');
 const joinCompetition = require('../lib/join-competition');
 const updateActiveCompetition = require('../lib/update-active-competition');
 const updateProfile = require('../lib/update-profile');
@@ -38,6 +39,8 @@ module.exports = (req, res) => {
       return getPlayers(req, res);
     case 'get-ranking':
       return getRanking(req, res);
+    case 'get-competition-view':
+      return getCompetitionView(req, res);
     case 'join-competition':
       return joinCompetition(req, res);
     case 'update-active-competition':
