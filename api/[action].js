@@ -14,6 +14,7 @@ const updateActiveCompetition = require('../lib/update-active-competition');
 const updateProfile = require('../lib/update-profile');
 const userState = require('../lib/user-state');
 const getNextMatches = require('../lib/get-next-matches');
+const getKnockouts = require('../lib/get-knockouts');
 module.exports = (req, res) => {
   const rawAction = req.query?.action;
   const action = Array.isArray(rawAction) ? rawAction[0] : rawAction;
@@ -51,6 +52,8 @@ module.exports = (req, res) => {
       return userState(req, res);
     case 'get-next-matches':
       return getNextMatches(req, res);
+    case 'get-knockouts':
+        return getKnockouts(req, res);
     default:
       return res.status(404).json({ error: 'Unknown action' });
   }
