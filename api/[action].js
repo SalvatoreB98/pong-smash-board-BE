@@ -16,6 +16,7 @@ const userState = require('../lib/user-state');
 const getNextMatches = require('../lib/get-next-matches');
 const getKnockouts = require('../lib/get-knockouts');
 const setMatchDate = require('../lib/set-match-date');
+const getCalendar = require('../lib/get-calendar');
 
 module.exports = (req, res) => {
   const rawAction = req.query?.action;
@@ -58,6 +59,8 @@ module.exports = (req, res) => {
       return getKnockouts(req, res);
     case 'set-match-date':
       return setMatchDate(req, res);
+    case 'get-calendar':
+      return getCalendar(req, res);
     default:
       return res.status(404).json({ error: 'Unknown action' });
   }
